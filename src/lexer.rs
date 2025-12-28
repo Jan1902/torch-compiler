@@ -1,4 +1,6 @@
-use crate::{source::Source, token::{Keyword, Token, TokenType, TokenValue}};
+use crate::{errors::CompileError, source::Source, token::{Keyword, Token, TokenType, TokenValue}};
+
+pub type LexResult<T> = Result<T, CompileError>;
 
 pub struct Lexer<'a> {
     src: &'a [u8],
@@ -23,18 +25,29 @@ impl<'a> Lexer<'a> {
         self.pos += 1;
     }
 
+    fn advance_and(&mut self, token: TokenType) -> LexResult<Token> {
+        let start = self.pos;
+        self.advance();
+
+        Ok(Token {
+            token_type: token,
+            value: TokenValue::None,
+            position: start,
+        })
+    }
+
     // Main Tokenizing Logic
-    fn get_token(&mut self) -> Token {
+    fn get_token(&mut self) -> LexResult<Token> {
         self.skip_whitespace();
 
         let c = match self.current() {
             Some(c) => c,
             None => {
-                return Token {
+                return Ok(Token {
                     token_type: TokenType::EOF,
                     value: TokenValue::None,
                     position: self.pos,
-                };
+                });
             }
         };
 
@@ -61,15 +74,18 @@ impl<'a> Lexer<'a> {
             b'!' => self.bang(),
             b'0'..=b'9' => self.number(),
             b'a'..=b'z' | b'A'..=b'Z' | b'_' => self.literal(),
-            _ => panic!("Lexing error: Unexpected character '{}' at {}", c as char, self.pos)
+            _ => Err(CompileError {
+                    message: format!("unexpected character '{}'", c as char),
+                    position: self.pos,
+                })       
         }
     }
 
-    pub fn read_all(&mut self) -> Vec<Token> {
+    pub fn read_all(&mut self) -> LexResult<Vec<Token>> {
         let mut tokens = Vec::<Token>::new();
 
         loop {
-            let token = self.get_token();
+            let token = self.get_token()?;
             
             if let TokenType::EOF = token.token_type {
                 tokens.push(token);
@@ -79,11 +95,11 @@ impl<'a> Lexer<'a> {
             tokens.push(token);
         }
 
-        tokens
+        Ok(tokens)
     }
 
     // Operators
-    fn bang(&mut self) -> Token {
+    fn bang(&mut self) -> LexResult<Token> {
         let c = self.current().unwrap();
         if matches!(self.peek(), Some(b'=')) {
             self.advance();
@@ -93,7 +109,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn equals(&mut self) -> Token {
+    fn equals(&mut self) -> LexResult<Token> {
         if matches!(self.peek(), Some(b'=')) {
             self.advance();
             self.advance_and(TokenType::EQ)
@@ -102,7 +118,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn less_than(&mut self) -> Token {
+    fn less_than(&mut self) -> LexResult<Token> {
         if matches!(self.peek(), Some(b'=')) {
             self.advance();
             self.advance_and(TokenType::LTE)
@@ -112,7 +128,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn greater_than(&mut self) -> Token {
+    fn greater_than(&mut self) -> LexResult<Token> {
         if matches!(self.peek(), Some(b'=')) {
             self.advance();
             self.advance_and(TokenType::GTE)
@@ -122,7 +138,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn number(&mut self) -> Token {
+    fn number(&mut self) -> LexResult<Token> {
         let start = self.pos;
 
         while matches!(self.current(), Some(b'0'..=b'9')) {
@@ -131,14 +147,14 @@ impl<'a> Lexer<'a> {
 
         let value = Self::parse_i32_ascii(&self.src[start..self.pos]);
 
-        Token {
+        Ok(Token {
             token_type: TokenType::NUMBER,
             value: TokenValue::Number(value),
             position: start,
-        }
+        })
     }
 
-    fn literal(&mut self) -> Token {
+    fn literal(&mut self) -> LexResult<Token> {
         let start = self.pos;
 
         while matches!(self.current(), Some(b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'_')) {
@@ -154,11 +170,11 @@ impl<'a> Lexer<'a> {
             _ => (TokenType::IDENTIFIER, TokenValue::Identifier(identifier)),
         };
 
-        Token {
+        Ok(Token {
             token_type: kind,
             value,
             position: start,
-        }
+        })
     }
 
     // Skipping
@@ -188,16 +204,5 @@ impl<'a> Lexer<'a> {
         }
 
         value
-    }
-
-    fn advance_and(&mut self, token: TokenType) -> Token {
-        let start = self.pos;
-        self.advance();
-
-        Token {
-            token_type: token,
-            value: TokenValue::None,
-            position: start,
-        }
     }
 }

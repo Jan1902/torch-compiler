@@ -51,10 +51,6 @@ impl Parser {
         }
     }
 
-    fn error(&self, msg: &str) -> ! {
-        panic!("{} at token index {}", msg, self.pos);
-    }
-
     fn is_at_end(&self) -> bool {
         matches!(self.current().token_type, TokenType::EOF)
     }
@@ -77,7 +73,10 @@ impl Parser {
             Token { token_type: TokenType::KEYWORD, value: TokenValue::Keyword(Keyword::WHILE), .. } => self.parse_while(),
             Token { token_type: TokenType::KEYWORD, value: TokenValue::Keyword(Keyword::LET), .. } => self.parse_decleration(),
             Token { token_type: TokenType::IDENTIFIER, .. } => self.parse_assignment(),
-            _ => self.error("expected statement"),
+            Token { token_type, ..} => Err(CompileError {
+                message: format!("unexpected token {:?}", token_type),
+                position: self.current().position,
+            }),
         }
     }
 

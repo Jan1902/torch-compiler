@@ -12,7 +12,7 @@ use parser::Parser;
 
 use std::{env, fs};
 
-use crate::source::Source;
+use crate::{errors::ErrorReporter, source::Source};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -42,7 +42,14 @@ fn main() {
     println!();
     println!("Tokenizing ..");
 
-    let tokens = lexer.read_all();
+    let result = lexer.read_all();
+    let tokens = match result {
+        Err(err) => {
+            ErrorReporter::print(&source, &err);
+            return;
+        },
+        Ok(tkns) => tkns,
+    };
 
     println!("Done tokenizing.");
 
@@ -63,7 +70,7 @@ fn main() {
     let result = parser.parse_program();
     let statements = match result {
         Err(err) => {
-            errors::ErrorReporter::print(&source, &err);
+            ErrorReporter::print(&source, &err);
             return;
         }
         Ok(stmts) => stmts,
@@ -87,7 +94,7 @@ fn main() {
     match result {
         Err(errors) => {
             for err in &errors {
-                errors::ErrorReporter::print(&source, err);
+                ErrorReporter::print(&source, err);
             }
             return;
         }

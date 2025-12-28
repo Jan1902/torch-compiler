@@ -9,6 +9,6 @@ while nums > 0
     let c = a + b;
     a = b;
     b = c;
-    
-    nums = nums - 1;
+
+    nums = nums -? 1;
 }
