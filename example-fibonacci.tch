@@ -1,0 +1,14 @@
+# Simple fiboancci example
+let nums = 10;
+
+let a = 0;
+let b = 1;
+
+while nums > 0
+{
+    let c = a + b;
+    a = b;
+    b = c;
+    
+    nums = nums - 1;
+}
