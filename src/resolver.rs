@@ -25,7 +25,7 @@ impl Resolver {
         self.scopes.pop();
     }
 
-    fn resolve(&mut self, name: &str, pos: usize) {
+    fn resolve(&mut self, name: &str, pos: usize, source_id: usize) {
         for scope in self.scopes.iter().rev() {
             if scope.symbols.contains_key(name) {
                 return;
@@ -34,16 +34,18 @@ impl Resolver {
 
         self.errors.push(CompileError {
             position: pos,
+            source_id,
             message: format!("use of undeclared variable `{}`", name),
         });
     }
 
-    fn define(&mut self, name: &str, pos: usize) {
+    fn define(&mut self, name: &str, pos: usize, source_id: usize) {
         let scope = self.scopes.last_mut().unwrap();
 
         if scope.symbols.contains_key(name) {
             self.errors.push(CompileError {
                 position: pos,
+                source_id,
                 message: format!("variable `{}` already declared in this scope", name),
             });
         } else {
@@ -51,7 +53,7 @@ impl Resolver {
                 name.to_string(),
                 Symbol {
                     name: name.to_string(),
-                    address: pos,
+                    position: pos,
                 },
             );
         }
@@ -78,16 +80,16 @@ impl Resolver {
             Stmt::Declare { target, value } => {
                 self.resolve_expr(value);
 
-                if let ExprNode { node: Expr::Variable(name), position: _ } = target {
-                    self.define(name, target.position);
+                if let ExprNode { node: Expr::Variable(name), position: _, source_id: _ } = target {
+                    self.define(name, target.position, target.source_id);
                 }
             }
 
             Stmt::Assign { target, value } => {
                 self.resolve_expr(value);
 
-                if let ExprNode { node: Expr::Variable(name), position: _ } = target {
-                    self.resolve(name, target.position); // Might also be able to just call resolve_expr here
+                if let ExprNode { node: Expr::Variable(name), position: _, source_id: _ } = target {
+                    self.resolve(name, target.position, target.source_id); // Might also be able to just call resolve_expr here
                 }
             }
 
@@ -107,7 +109,7 @@ impl Resolver {
     fn resolve_expr(&mut self, expr: &ExprNode) {
         match &expr.node {
             Expr::Variable(name) => {
-                self.resolve(name, expr.position);
+                self.resolve(name, expr.position, expr.source_id);
             }
 
             Expr::Binary { left, right, .. } => {

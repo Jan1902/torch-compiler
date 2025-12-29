@@ -9,6 +9,7 @@ const EOF_TOKEN: Token = Token {
     token_type: TokenType::EOF,
     value: TokenValue::None,
     position: 0,
+    source_id: 0,
 };
 
 pub type ParseResult<T> = Result<T, CompileError>;
@@ -47,7 +48,7 @@ impl Parser {
         if self.current().token_type == *kind {
             Ok(self.advance())
         } else {
-            Err(CompileError { message: msg.to_string(), position: self.current().position })
+            Err(CompileError { message: msg.to_string(), position: self.current().position, source_id: self.current().source_id })
         }
     }
 
@@ -76,6 +77,7 @@ impl Parser {
             Token { token_type, ..} => Err(CompileError {
                 message: format!("unexpected token {:?}", token_type),
                 position: self.current().position,
+                source_id: self.current().source_id,
             }),
         }
     }
@@ -89,6 +91,7 @@ impl Parser {
         Ok(StmtNode {
             node: Stmt::If { condition, body: block },
             position: keyword.position,
+            source_id: keyword.source_id,
         })
     }
 
@@ -101,6 +104,7 @@ impl Parser {
         Ok(StmtNode {
             node: Stmt::While { condition, body: block },
             position: keyword.position,
+            source_id: keyword.source_id,
         })
     }
 
@@ -120,7 +124,7 @@ impl Parser {
         let keyword = self.advance();
 
         let target = match self.expect(&TokenType::IDENTIFIER, "expected identifier")?.value {
-            TokenValue::Identifier(n) => ExprNode { node: Expr::Variable(n), position: self.current().position },
+            TokenValue::Identifier(n) => ExprNode { node: Expr::Variable(n), position: self.current().position, source_id: self.current().source_id },
             _ => unreachable!()
         };
 
@@ -133,12 +137,13 @@ impl Parser {
         Ok(StmtNode {
             node: Stmt::Declare { target, value },
             position: keyword.position,
+            source_id: keyword.source_id,
         })
     }
 
     fn parse_assignment(&mut self) -> ParseResult<StmtNode> {
         let target = match self.expect(&TokenType::IDENTIFIER, "expected identifier")?.value {
-            TokenValue::Identifier(n) => ExprNode { node: Expr::Variable(n), position: self.current().position },
+            TokenValue::Identifier(n) => ExprNode { node: Expr::Variable(n), position: self.current().position, source_id: self.current().source_id },
             _ => unreachable!()
         };
 
@@ -150,6 +155,7 @@ impl Parser {
 
         Ok(StmtNode {
             position: target.position,
+            source_id: target.source_id,
             node: Stmt::Assign { target, value },
         })
     }
@@ -174,6 +180,7 @@ impl Parser {
 
             expr = ExprNode {
                 position: expr.position,
+                source_id: expr.source_id,
                 node: Expr::Binary {
                     left: Box::new(expr),
                     operator: op.token_type,
@@ -194,6 +201,7 @@ impl Parser {
 
             expr = ExprNode {
                 position: expr.position,
+                source_id: expr.source_id,
                 node: Expr::Binary {
                     left: Box::new(expr),
                     operator: op.token_type,
@@ -214,6 +222,7 @@ impl Parser {
 
             expr = ExprNode {
                 position: expr.position,
+                source_id: expr.source_id,
                 node: Expr::Binary {
                     left: Box::new(expr),
                     operator: op.token_type,
@@ -236,6 +245,7 @@ impl Parser {
                     operand: Box::new(right),
                 },
                 position: op.position,
+                source_id: op.source_id,
             });
         }
 
@@ -244,8 +254,8 @@ impl Parser {
 
     fn parse_primary(&mut self) -> ParseResult<ExprNode> {
         match self.advance() {
-            Token { token_type: TokenType::NUMBER, value: TokenValue::Number(n), .. } => Ok(ExprNode { node: Expr::Number(n), position: self.current().position }),
-            Token { token_type: TokenType::IDENTIFIER, value: TokenValue::Identifier(name), .. } => Ok(ExprNode { node: Expr::Variable(name), position: self.current().position }),
+            Token { token_type: TokenType::NUMBER, value: TokenValue::Number(n), position, source_id } => Ok(ExprNode { node: Expr::Number(n), position, source_id }),
+            Token { token_type: TokenType::IDENTIFIER, value: TokenValue::Identifier(name), position, source_id } => Ok(ExprNode { node: Expr::Variable(name), position, source_id }),
 
             Token { token_type: TokenType::LPAREN, .. } => {
                 let expr = self.parse_expression()?;
@@ -256,6 +266,7 @@ impl Parser {
             token => Err(CompileError {
                 message: format!("expected expression, found {:?}", token.token_type),
                 position: token.position,
+                source_id: token.source_id,
             })
         }
     }

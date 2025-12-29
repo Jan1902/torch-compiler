@@ -1,0 +1,2 @@
+# Used as a placeholder example for input function as there are no functions or register mapped io yet.
+let nums_input = 10;

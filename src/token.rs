@@ -52,4 +52,5 @@ pub struct Token {
     pub token_type: TokenType,
     pub value: TokenValue,
     pub position: usize,
+    pub source_id: usize,
 }

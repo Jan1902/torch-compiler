@@ -39,6 +39,7 @@ pub enum Stmt {
 pub struct AstNode<T> {
     pub node: T,
     pub position: usize,
+    pub source_id: usize,
 }
 
 pub type ExprNode = AstNode<Expr>;

@@ -1,5 +1,8 @@
 # Simple fiboancci example
-let nums = 10;
+
+!include "./io.tch"
+
+let nums = nums_input;
 
 let a = 0;
 let b = 1;
@@ -10,5 +13,5 @@ while nums > 0
     a = b;
     b = c;
 
-    nums = nums -? 1;
+    nums = nums - 1;
 }

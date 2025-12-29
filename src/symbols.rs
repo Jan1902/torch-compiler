@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 pub struct Symbol {
     pub name: String,
-    pub address: usize,
+    pub position: usize,
 }
 
 pub struct Scope {
