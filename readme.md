@@ -17,7 +17,6 @@ cargo run .\example-fibonacci.tch
 
 ## Structure
 
-- Linker
 - Lexer
 - Parser
 - Resolver

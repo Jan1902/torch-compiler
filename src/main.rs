@@ -1,19 +1,19 @@
-mod lexer;
-mod token;
-mod parser;
 mod ast;
-mod source;
 mod errors;
+mod lexer;
+mod parser;
 mod resolver;
-mod symbols;
+mod source;
 mod source_map;
+mod symbols;
+mod token;
 
 use lexer::Lexer;
 use parser::Parser;
 
-use std::{env, fs};
+use std::env;
 
-use crate::{errors::ErrorReporter, source::Source};
+use crate::errors::ErrorReporter;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -42,7 +42,7 @@ fn main() {
         Err(err) => {
             ErrorReporter::print(&source_map, &err);
             return;
-        },
+        }
         Ok(tkns) => tkns,
     };
 
@@ -52,7 +52,10 @@ fn main() {
     println!("Extracted tokens:");
 
     for token in &tokens {
-        println!("{:?}: {:?} @ {:?} {:?}", token.token_type, token.value, token.position, token.source_id);
+        println!(
+            "{:?}: {:?} @ {:?} {:?}",
+            token.token_type, token.value, token.position, token.source_id
+        );
     }
 
     // Parsing
@@ -81,20 +84,30 @@ fn main() {
 
     // Resolving
 
-    let resolver = resolver::Resolver::new();
+    let mut symbol_table = symbols::SymbolTable::new();
+
+    let resolver = resolver::Resolver::new(&mut symbol_table);
     println!();
     println!("Resolving ..");
 
-    let result = resolver.resolve_program(&statements);
-    match result {
-        Err(errors) => {
-            for err in &errors {
-                ErrorReporter::print(&source_map, err);
-            }
-            return;
-        }
-        Ok(()) => {
-            println!("Done resolving.");
+    resolver.resolve_program(&statements).unwrap_or_else(|err| {
+        ErrorReporter::print(&source_map, &err);
+        return;
+    });
+
+    println!("Done resolving.");
+
+    println!();
+    println!("Symbols:");
+
+    for (i, scope) in symbol_table.scopes.iter().enumerate() {
+        println!(" Scope {}, parent {:?}:", i, scope.parent);
+
+        for (_, symbol) in &scope.symbols {
+            println!(
+                "  {}: position {}, source_id {}",
+                symbol.name, symbol.position, symbol.source_id,
+            );
         }
     }
 
