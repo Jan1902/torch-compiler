@@ -7,6 +7,8 @@ mod source;
 mod source_map;
 mod symbols;
 mod token;
+mod instructions;
+mod ir_builder;
 
 use lexer::Lexer;
 use parser::Parser;
@@ -30,6 +32,8 @@ fn main() {
 
     let mut source_map = source_map::SourceMap::new();
     source_map.add_from_file(input_file_name).unwrap();
+
+    println!("Loaded source file `{}`.", input_file_name);
 
     // Lexing
 
@@ -112,6 +116,21 @@ fn main() {
     }
 
     // Intermediate Representation
+
+    let mut ir_builder = ir_builder::IrBuilder::new(&mut symbol_table);
+    println!();
+    println!("Generating Intermediate Representation ..");
+
+    let instrs = ir_builder.lower_program(&statements);
+
+    println!("Done generating IR.");
+
+    println!();
+    println!("Generated Instructions:");
+
+    for instr in instrs {
+        println!("{:?}", instr);
+    }
 
     // Code Generation
 }

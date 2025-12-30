@@ -52,9 +52,7 @@ impl<'a> Resolver<'a> {
             Stmt::Assign { target, value } => {
                 self.resolve_expr(value)?;
 
-                if let ExprNode { node: Expr::Variable(name), position: _, source_id: _ } = target {
-                    self.resolve(name, target.position, target.source_id)?; // Might also be able to just call resolve_expr here
-                }
+                self.resolve_expr(target)?;
             }
 
             Stmt::If { condition, body } |
