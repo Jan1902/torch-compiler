@@ -9,6 +9,9 @@ mod symbols;
 mod token;
 mod instructions;
 mod ir_builder;
+mod legalizer;
+mod register_allocator;
+mod emitter;
 
 use lexer::Lexer;
 use parser::Parser;
@@ -121,7 +124,7 @@ fn main() {
     println!();
     println!("Generating Intermediate Representation ..");
 
-    let instrs = ir_builder.lower_program(&statements);
+    let instrs = ir_builder.build(&statements);
 
     println!("Done generating IR.");
 
@@ -132,5 +135,32 @@ fn main() {
         println!("{:?}", instr);
     }
 
-    // Code Generation
+    // Legalization
+
+    let mut legalizer = legalizer::Legalizer::new(instrs);
+
+    println!();
+    println!("Legalizing Instructions ..");
+    let legalized_instrs = legalizer.legalize();
+    println!("Done legalizing.");
+
+    println!();
+    println!("Legalized Instructions:");
+    for instr in &legalized_instrs {
+        println!("{:?}", instr);
+    }
+
+    // Register Allocation
+
+    let mut allocator = register_allocator::Allocator::new();
+    println!();
+    println!("Allocating Registers ..");
+    let allocated_instrs = allocator.allocate(&legalized_instrs);
+    println!("Done allocating registers.");
+
+    println!();
+    println!("Register Allocated Instructions:");
+    for instr in allocated_instrs {
+        println!("{:?}", instr);
+    }
 }

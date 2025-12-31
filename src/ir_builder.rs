@@ -11,7 +11,7 @@ impl<'a> IrBuilder<'a> {
     pub fn new(symbols: &'a SymbolTable) -> Self {
         IrBuilder {
             instrs: Vec::new(),
-            next_temp: 0,
+            next_temp: symbols.scopes.iter().map(|s| s.symbols.len()).sum::<usize>() as u32 + 1,
             next_label: 0,
             symbols,
         }
@@ -33,17 +33,32 @@ impl<'a> IrBuilder<'a> {
         label
     }
 
-    fn lower_expr(&mut self, expr: &Expr) -> Value {
+    fn lower_expr(&mut self, expr: &Expr, target: Option<Value>) -> Value {
         match expr {
-            Expr::Number(n) => Value::Const(*n),
+            Expr::Number(n) => {
+                if let Some(t) = target {
+                    self.emit(Instr::Move { dst: t, src: Value::Const(*n) });
+                    t
+                } else {
+                    Value::Const(*n)
+                }
+            },
             Expr::Variable(name) => {
                 let id = self.symbols.id_of(name);
-                Value::Var(id)
+                if let Some(t) = target {
+                    self.emit(Instr::Move { dst: t, src: Value::Var(id) });
+                    t
+                } else {
+                    Value::Var(id)
+                }
             },
             Expr::Binary { left, right, operator } => {
-                let lhs = self.lower_expr(&left.node);
-                let rhs = self.lower_expr(&right.node);
-                let dst = self.new_temp();
+                let lhs = self.lower_expr(&left.node, None);
+                let rhs = self.lower_expr(&right.node, None);
+                let dst = match target {
+                    Some(t) => t,
+                    None => self.new_temp(),
+                };
 
                 self.emit(match operator {
                     TokenType::PLUS => Instr::Add { dst, lhs, rhs },
@@ -56,8 +71,11 @@ impl<'a> IrBuilder<'a> {
             },
             Expr::Unary { operand, operator } => {
                 // Beispiel: Negation
-                let val = self.lower_expr(&operand.node);
-                let dst = self.new_temp();
+                let val = self.lower_expr(&operand.node, None);
+                let dst = match target {
+                    Some(t) => t,
+                    None => self.new_temp(),
+                };
 
                 match operator {
                     TokenType::MINUS => {
@@ -79,29 +97,19 @@ impl<'a> IrBuilder<'a> {
     fn lower_stmt(&mut self, stmt: &Stmt) {
         match stmt {
             Stmt::Assign { target, value } => {
-                let src = self.lower_expr(&value.node);
-
                 if let Expr::Variable(name) = &target.node {
                     let var = self.symbols.id_of(&name);
 
-                    self.emit(Instr::Store {
-                        dst: Value::Var(var),
-                        src,
-                    });
+                    self.lower_expr(&value.node, Some(Value::Var(var)));
                 } else {
                     panic!("Invalid assignment target");
                 }
             },
             Stmt::Declare { target, value } => {
-                let src = self.lower_expr(&value.node);
-
                 if let Expr::Variable(name) = &target.node {
                     let var = self.symbols.id_of(&name);
 
-                    self.emit(Instr::Store {
-                        dst: Value::Var(var),
-                        src,
-                    });
+                    self.lower_expr(&value.node, Some(Value::Var(var)));
                 } else {
                     panic!("Invalid declaration target");
                 }
@@ -112,7 +120,7 @@ impl<'a> IrBuilder<'a> {
 
                 self.emit(Instr::Label(start));
 
-                let cond = self.lower_expr(&condition.node);
+                let cond = self.lower_expr(&condition.node, None);
                 self.emit(Instr::JumpIfFalse {
                     cond,
                     target: end,
@@ -129,7 +137,7 @@ impl<'a> IrBuilder<'a> {
         }
     }
 
-    pub fn lower_program(&mut self, stmts: &Vec<StmtNode>) -> &Vec<Instr> {
+    pub fn build(&mut self, stmts: &Vec<StmtNode>) -> &Vec<Instr> {
         for stmt in stmts {
             self.lower_stmt(&stmt.node);
         }
